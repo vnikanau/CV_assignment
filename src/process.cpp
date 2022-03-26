@@ -22,11 +22,16 @@ processorBase::processorBase()
 
 void processorBase::processStream()
 {
+    auto t0 = chrono::high_resolution_clock::now();
     while(1)
     {
-        if( !processImage() )
+        if( !processImage( t0 ) )
         {
             this_thread::sleep_for(chrono::milliseconds(5));
+        }
+        else
+        {
+            t0 = chrono::high_resolution_clock::now();
         }
     }
 }
@@ -64,7 +69,7 @@ void processorW1::addImage( Mat image )
     skipSecond = !skipSecond;
 }
     
-bool processorW1::processImage()
+bool processorW1::processImage( time_type t0 )
 {
     if( !frameBuffer.empty() )
     {
@@ -119,7 +124,7 @@ void processorW2::addImage( Mat image )
     }
 }
     
-bool processorW2::processImage()
+bool processorW2::processImage( time_type t0 )
 {
     const std::scoped_lock<std::mutex> lock( this->m_in );
     
@@ -129,8 +134,6 @@ bool processorW2::processImage()
     }
     
     //cout << "begin process w2" << endl;
-    
-    auto t1 = chrono::high_resolution_clock::now();
     
     auto h = currentImageIn.rows;
     auto w = currentImageIn.cols * .5f;
@@ -163,9 +166,9 @@ bool processorW2::processImage()
         }
     }
     
-    auto t2 = chrono::high_resolution_clock::now();
+    auto t_proc = chrono::high_resolution_clock::now();
 
-    auto duration = chrono::duration_cast<chrono::microseconds>( t2 - t1 ).count();
+    auto duration = chrono::duration_cast<chrono::microseconds>( t_proc - t0 ).count();
     auto delta = 1000000 - duration;
     
     if( delta > 0 )
@@ -173,9 +176,9 @@ bool processorW2::processImage()
         this_thread::sleep_for(chrono::microseconds(delta));
     }
     
-    auto t3 = chrono::high_resolution_clock::now();
+    auto t_wait = chrono::high_resolution_clock::now();
 
-    cout << "w2 proc. time: " << chrono::duration_cast<chrono::milliseconds>( t3 - t1 ).count() << endl;
+    cout << "w2 proc. time: " << chrono::duration_cast<chrono::milliseconds>( t_wait - t0 ).count() << endl;
     
     currProcessed = true;
     showCurrent = false;

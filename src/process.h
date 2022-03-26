@@ -13,6 +13,7 @@ using namespace cv;
 using namespace std;
 
 typedef mt19937 rng_type;
+typedef decltype(chrono::high_resolution_clock::now()) time_type;
 
 class processorBase
 {
@@ -24,7 +25,7 @@ protected:
     std::mutex m_out;
 
 protected:
-    virtual bool processImage() = 0;
+    virtual bool processImage( time_type ) = 0;
     void processStream();
     
 public:
@@ -46,7 +47,7 @@ private:
 public:
     void show() override;
     void addImage( Mat image ) override;
-    bool processImage() override;
+    bool processImage( time_type ) override;
 };
 
 class processorW2 : public processorBase
@@ -61,5 +62,5 @@ private:
 public:
     void show() override;
     void addImage( Mat image ) override;
-    bool processImage() override;
+    bool processImage( time_type ) override;
 };
