@@ -1,121 +1,122 @@
 #include "process.h"
-#include "opencv2/core.hpp"
-#include "opencv2/highgui.hpp"
-#include "opencv2/imgproc.hpp"
 
 // Standard C++ I/O library.
-#include <iostream>
-#include <vector>
-#include <random>
-#include <queue>
 #include <chrono>
-#include <thread>
-#include <mutex>
 
-uniform_int_distribution<rng_type::result_type> udist(500, 1500);
+std::uniform_int_distribution<rng_type::result_type> udist(500, 1500);
 
 processorBase::processorBase()
 {
-    thread procThread( &processorBase::processStream, this );
+    std::thread procThread( &processorBase::processStream, this );
     procThread.detach();
 }
 
 void processorBase::processStream()
 {
-    auto t0 = chrono::high_resolution_clock::now();
+    auto t0 = std::chrono::high_resolution_clock::now();
     while(1)
     {
         if( !processImage( t0 ) )
         {
-            this_thread::sleep_for(chrono::milliseconds(5));
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
         }
         else
         {
-            t0 = chrono::high_resolution_clock::now();
+            t0 = std::chrono::high_resolution_clock::now();
         }
     }
 }
     
-Mat& processorBase::activeImage()
+cv::Mat& processorBase::activeImage()
 {
-    const std::scoped_lock<std::mutex> lock(this->m_out);
-    return currentImageOut;
+    const std::scoped_lock<std::mutex> lock(this->_m_out);
+    return _currentImageOut;
+}
+
+processorW1::processorW1()
+{
+    _viewScale = .6f;
 }
 
 void processorW1::show()
 {
-    if( !showCurrent && currProcessed )
+    if( !_showCurrent && _currProcessed )
     {
-        Mat im4show;
-        const std::scoped_lock<std::mutex> lock(this->m_out);
-        cvtColor( currentImageOut, im4show, COLOR_BGR2GRAY );
-        resize( im4show, im4show, cv::Size(), 0.5, 0.5 );
+        cv::Mat im4show;
+        const std::scoped_lock<std::mutex> lock(this->_m_out);
+        cvtColor( _currentImageOut, im4show, cv::COLOR_BGR2GRAY );
+        resize( im4show, im4show, cv::Size(), _viewScale, _viewScale );
         imshow( "Window 1", im4show );
-        showCurrent = true;
+        _showCurrent = true;
     }
 }
     
-void processorW1::addImage( Mat image )
+void processorW1::addImage( cv::Mat image )
 {
-    if( !skipSecond )
+    if( !_skipSecond )
     {
-        const std::scoped_lock<std::mutex> lock(this->m_in);
-        frameBuffer.push( std::move( image ) );
-        if( frameBuffer.size() > maxBufferSize )
+        const std::scoped_lock<std::mutex> lock( this->_m_in );
+        _frameBuffer.push( std::move( image ) );
+        if( _frameBuffer.size() > _maxBufferSize )
         {
-            frameBuffer.pop();
+            _frameBuffer.pop();
         }
     }
-    skipSecond = !skipSecond;
+    _skipSecond = !_skipSecond;
 }
     
 bool processorW1::processImage( time_type t0 )
 {
-    if( !frameBuffer.empty() )
+    if( !_frameBuffer.empty() )
     {
-        const std::scoped_lock<std::mutex> lock_out(this->m_out);
-        currProcessed = false;
+        const std::scoped_lock<std::mutex> lock_out(this->_m_out);
+        _currProcessed = false;
         
-        rotationCount++;
+        _rotationCount++;
         {
-            const std::scoped_lock<std::mutex> lock_in(this->m_in);
-            currentImageOut = std::move( frameBuffer.front() );
-            frameBuffer.pop();
+            const std::scoped_lock<std::mutex> lock_in(this->_m_in);
+            _currentImageOut = std::move( _frameBuffer.front() );
+            _frameBuffer.pop();
         }
         
-        if( rotationCount > 5 )
+        if( _rotationCount > _rotateEvery )
         {
-            rotationCount = 0;
+            _rotationCount = 0;
         
-            if( rotationAngle == ROTATE_90_COUNTERCLOCKWISE )
+            if( _rotationAngle == cv::ROTATE_90_COUNTERCLOCKWISE )
             {
-                rotationAngle = -1;
+                _rotationAngle = -1;
             }
             else
             {
-                rotationAngle++;
+                _rotationAngle++;
             }
         }
     
-        if( rotationAngle >= ROTATE_90_CLOCKWISE )
+        if( _rotationAngle >= cv::ROTATE_90_CLOCKWISE )
         {
-            cv::rotate( currentImageOut, currentImageOut, rotationAngle );
+            cv::rotate( _currentImageOut, _currentImageOut, _rotationAngle );
         }
         
-        currProcessed = true;
-        showCurrent = false;
+        _currProcessed = true;
+        _showCurrent = false;
         return true;
     }
     return false;
 }
 
-void processorW2::addImage( Mat image )
+processorW2::processorW2()
 {
-    std::unique_lock<std::mutex> mlock( this->m_in, std::try_to_lock );
+    _viewScale = .8f;
+}
+
+void processorW2::addImage( cv::Mat image )
+{
+    std::unique_lock<std::mutex> mlock( this->_m_in, std::try_to_lock );
     if( mlock )
     {
-        currentImageIn = image.clone();
-        currProcessed = false;
+        _currentImageIn = image.clone();
+        _currProcessed = false;
         //cout << "w2: added" << endl;
     }
     else
@@ -126,62 +127,66 @@ void processorW2::addImage( Mat image )
     
 bool processorW2::processImage( time_type t0 )
 {
-    const std::scoped_lock<std::mutex> lock( this->m_in );
+    const std::scoped_lock<std::mutex> lock( this->_m_in );
     
-    if( currentImageIn.empty() || currProcessed )
+    if( _currentImageIn.empty() || _currProcessed )
     {
         return false;
     }
     
     //cout << "begin process w2" << endl;
     
-    auto h = currentImageIn.rows;
-    auto w = currentImageIn.cols * .5f;
-    Mat left = currentImageIn( Range( 0, w ), Range( 0, h ) );
-    
-    Mat fullImageHSV;
-    cvtColor( left, fullImageHSV, COLOR_BGR2HSV );
-    
-    Mat hsv[4];
-    split( fullImageHSV, hsv );
-    auto intens = hsv[2];
-    auto type = intens.type();
-    
-    auto val = mean( intens )[0];
-    
     // call long time processing function
-    LogitechFrameProcessingMagic( currentImageIn );
+    LogitechFrameProcessingMagic( _currentImageIn );
+    
+    cv::Mat rgb[4];
+    cv::split( _currentImageIn, rgb );
+    auto intens = ( rgb[0] + rgb[1] + rgb[2] ) / 3;
+    double intens_min, intens_max;
+    cv::minMaxLoc( intens, &intens_min, &intens_max );
+    
+    double intens_treshold = 0.5 * ( intens_min + intens_max );
+    
+    auto h = _currentImageIn.rows;
+    auto w = _currentImageIn.cols * .5f;
+    cv::Mat left = _currentImageIn( cv::Range( 0, w ), cv::Range( 0, h ) );
+    
+    cv::Mat rgb_left[4];
+    cv::split( left, rgb_left );
+    
+    auto intens_left = ( rgb_left[0] + rgb_left[1] + rgb_left[2] ) / 3;
+    auto intens_left_mean = cv::mean( intens_left )[0];
     
     {
-        const std::scoped_lock<std::mutex> lock( this->m_out );
-        if( val > 128 )
+        const std::scoped_lock<std::mutex> lock( this->_m_out );
+        if( intens_left_mean > intens_treshold )
         {
-            // cout << "flip - val = " << val << endl;
-            flip( currentImageIn, currentImageOut, 1 );
+            std::cout << "flip - left intens = " << intens_left_mean << std::endl;
+            flip( _currentImageIn, _currentImageOut, 1 );
         }
         else
         {
-            currentImageOut = move( currentImageIn );
+            _currentImageOut = std::move( _currentImageIn );
             // cout << "no flip - val = " << val << endl;
         }
     }
     
-    auto t_proc = chrono::high_resolution_clock::now();
+    auto t_proc = std::chrono::high_resolution_clock::now();
 
-    auto duration = chrono::duration_cast<chrono::microseconds>( t_proc - t0 ).count();
-    auto delta = 1000000 - duration;
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>( t_proc - t0 ).count();
+    auto delta = _minProcessingTime - duration;
     
     if( delta > 0 )
     {
-        this_thread::sleep_for(chrono::microseconds(delta));
+        std::this_thread::sleep_for(std::chrono::microseconds(delta));
     }
     
-    auto t_wait = chrono::high_resolution_clock::now();
+    auto t_wait = std::chrono::high_resolution_clock::now();
 
-    cout << "w2 proc. time: " << chrono::duration_cast<chrono::milliseconds>( t_wait - t0 ).count() << endl;
+    std::cout << "w2 proc. time: " << std::chrono::duration_cast<std::chrono::milliseconds>( t_wait - t0 ).count() << std::endl;
     
-    currProcessed = true;
-    showCurrent = false;
+    _currProcessed = true;
+    _showCurrent = false;
     
     //cout << "end process w2" << endl;
     
@@ -190,24 +195,24 @@ bool processorW2::processImage( time_type t0 )
     
 void processorW2::show()
 {
-    if( !showCurrent && !currentImageOut.empty() )
+    if( !_showCurrent && !_currentImageOut.empty() )
     {
-        Mat im4show;
-        const std::scoped_lock<std::mutex> lock(this->m_out);
-        resize( currentImageOut, im4show, cv::Size(), 0.5, 0.5 );
+        cv::Mat im4show;
+        const std::scoped_lock<std::mutex> lock(this->_m_out);
+        resize( _currentImageOut, im4show, cv::Size(), _viewScale, _viewScale );
         imshow( "Window 2", im4show );
-        showCurrent = true;
+        _showCurrent = true;
     }
 }
     
 void processorW2::LogitechFrameProcessingMagic( cv::Mat image )
 {
-    random_device rd;
+    std::random_device rd;
     rng_type::result_type const seedval = rd();
-    rng.seed(seedval);
-    rng_type::result_type random_number = udist(rng);
+    _rng.seed(seedval);
+    rng_type::result_type random_number = udist(_rng);
       
-    this_thread::sleep_for(chrono::milliseconds(random_number));
+    std::this_thread::sleep_for(std::chrono::milliseconds(random_number));
 
     //cout << "random_number: " << random_number << endl;
 }

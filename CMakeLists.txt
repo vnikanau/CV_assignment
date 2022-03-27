@@ -27,7 +27,6 @@ src/main.cpp
 
 set(TARGET_NAME CV_assignment)
 
-
 # Set the project name
 PROJECT(CV_assignment)
 
@@ -56,7 +55,7 @@ source_group(headers REGULAR_EXPRESSION ".*[.]h")
 #	GENERATE EXECUTABLE
 #-------------------------------------------------------------------------------
 
-find_package(OpenCV REQUIRED)
+find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui)
 
 # Set additional include directories
 include_directories(${INCLUDE_DIRS})

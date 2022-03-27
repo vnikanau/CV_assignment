@@ -9,20 +9,18 @@
 #include <thread>
 #include <mutex>
 
-using namespace cv;
-using namespace std;
-
-typedef mt19937 rng_type;
-typedef decltype(chrono::high_resolution_clock::now()) time_type;
+typedef std::mt19937 rng_type;
+typedef decltype(std::chrono::high_resolution_clock::now()) time_type;
 
 class processorBase
 {
 protected:
-    Mat currentImageOut;
-    bool currProcessed{false};
-    bool showCurrent{false};
-    std::mutex m_in;
-    std::mutex m_out;
+    cv::Mat     _currentImageOut;
+    bool        _currProcessed{false};
+    bool        _showCurrent{false};
+    std::mutex  _m_in;
+    std::mutex  _m_out;
+    float       _viewScale{1.f};
 
 protected:
     virtual bool processImage( time_type ) = 0;
@@ -31,36 +29,40 @@ protected:
 public:
     processorBase();
     virtual void show() = 0;
-    virtual void addImage( Mat image ) = 0;
-    Mat& activeImage();
+    virtual void addImage( cv::Mat image ) = 0;
+    cv::Mat& activeImage();
 };
 
 class processorW1 : public processorBase
 {
 private:
-    queue <Mat> frameBuffer;
-    bool skipSecond {false};
-    unsigned int maxBufferSize{10};
-    int rotationAngle{-1};
-    unsigned int rotationCount{0};
+    std::queue <cv::Mat> _frameBuffer;
+    bool                 _skipSecond {false};
+    unsigned int         _maxBufferSize{10};
+    int                  _rotationAngle{-1};
+    unsigned int         _rotationCount{0};
+    const unsigned int   _rotateEvery{5};
     
 public:
+    processorW1();
     void show() override;
-    void addImage( Mat image ) override;
+    void addImage( cv::Mat image ) override;
     bool processImage( time_type ) override;
 };
 
 class processorW2 : public processorBase
 {
 private:
-    rng_type rng;
-    Mat currentImageIn;
+    rng_type   _rng;
+    cv::Mat    _currentImageIn;
+    const int  _minProcessingTime {1000000}; // microseconds
     
 private:
-    void LogitechFrameProcessingMagic( Mat image );
+    void LogitechFrameProcessingMagic( cv::Mat image );
     
 public:
+    processorW2();
     void show() override;
-    void addImage( Mat image ) override;
+    void addImage( cv::Mat image ) override;
     bool processImage( time_type ) override;
 };

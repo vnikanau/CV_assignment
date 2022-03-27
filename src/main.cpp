@@ -2,14 +2,14 @@
 
 int main(int argc, char** argv)
 {
-    Mat image;
+    cv::Mat image;
     
-    VideoCapture cap(0);
+    cv::VideoCapture cap(0);
 
     if (!cap.isOpened())
     {
-        cout << "cannot open camera";
-        return;
+        std::cout << "cannot open camera";
+        return 0;
     }
     
     processorW1 w1;
@@ -25,10 +25,10 @@ int main(int argc, char** argv)
         w2.addImage( image );
         w2.show();
 
-        waitKey(1);
+        cv::waitKey(1);
     }
 
-  waitKey();
+    cv::waitKey();
   return 0;
 }
 
