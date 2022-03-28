@@ -7,14 +7,19 @@ std::uniform_int_distribution<rng_type::result_type> udist(500, 1500);
 
 processorBase::processorBase()
 {
-    std::thread procThread( &processorBase::processStream, this );
-    procThread.detach();
+    _procThread = std::make_shared<std::thread>( &processorBase::processStream, this );
+    _procThread->detach();
+}
+
+void processorBase::stop()
+{
+    _killProcessor = true;
 }
 
 void processorBase::processStream()
 {
     auto t0 = std::chrono::high_resolution_clock::now();
-    while(1)
+    while( !_killProcessor )
     {
         if( !processImage( t0 ) )
         {

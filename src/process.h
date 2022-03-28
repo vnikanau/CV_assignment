@@ -21,6 +21,8 @@ protected:
     std::mutex  _m_in;
     std::mutex  _m_out;
     float       _viewScale{1.f};
+    std::shared_ptr<std::thread> _procThread;
+    bool        _killProcessor{false};
 
 protected:
     virtual bool processImage( time_type ) = 0;
@@ -31,6 +33,7 @@ public:
     virtual void show() = 0;
     virtual void addImage( cv::Mat image ) = 0;
     cv::Mat& activeImage();
+    void stop();
 };
 
 class processorW1 : public processorBase

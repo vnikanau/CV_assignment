@@ -15,7 +15,7 @@ int main(int argc, char** argv)
     processorW1 w1;
     processorW2 w2;
     
-    while (true)
+    while( true )
     {
         cap >> image;
 
@@ -25,10 +25,15 @@ int main(int argc, char** argv)
         w2.addImage( image );
         w2.show();
 
-        cv::waitKey(1);
+        int k = cv::waitKey(1); // Wait for a keystroke in the window
+        if( k == 27 ) // esc to exit
+        {
+            w1.stop();
+            w2.stop();
+            std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+            return 0;
+        }
     }
-
-    cv::waitKey();
-  return 0;
+    return 0;
 }
 
