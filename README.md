@@ -28,9 +28,13 @@ What the project does?
 
 Build from console:
 
+
 git clone https://github.com/vnikanau/CV_assignment.git
+
 cmake -S "CV_assignment" -B "build" -G "Unix Makefiles"
+
 cd build
+
 make
 
 
