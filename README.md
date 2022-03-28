@@ -52,7 +52,9 @@ Press "Esc" for exit
 Dependencies:
 
 OpenCV 3.0 or newer (tested with 4.5.3)
+
 C++17
+
 CMake 2.8.12 or newer (tested with 3.12.2)
 
 
@@ -61,6 +63,8 @@ CMake 2.8.12 or newer (tested with 3.12.2)
 Checked on:
 
 MacOS 10.15.7 XCode 12.4 
+
 MacOS 10.15.7 Qt Creator 4.2.1 
+
 MacOS 10.15.7 build from console Unix Makefiles
 
